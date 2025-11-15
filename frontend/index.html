@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proyecto Desarrollo Web - Sistema de Colas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #764ba2;
+        }
+
+        .error {
+            color: #dc3545;
+            text-align: center;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .success {
+            color: #28a745;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1>🏥 Proyecto Desarrollo Web</h1>
+        <div class="success">
+            ✅ Usa: enfermero@hospital.com / password
+        </div>
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" required value="enfermero@hospital.com">
+            </div>
+            <div class="form-group">
+                <label for="password">Contraseña:</label>
+                <input type="password" id="password" required value="password">
+            </div>
+            <button type="submit">Iniciar Sesión</button>
+        </form>
+        <div id="errorMessage" class="error"></div>
+        <a href="#" id="showRegister">Register</a>
+    </div>
+    <div id="registerContainer" style="display: none; margin-top: 20px">
+        <form id="registerForm">
+            <h2>Register</h2>
+            <div class="form-group">
+                <label for="registerName">Name:</label>
+                <input type="text" id="registerName" required>
+            </div>
+            <div class="form-group">
+                <label for="registerEmail">Email:</label>
+                <input type="email" id="registerEmail" required>
+            </div>
+            <div class="form-group">
+                <label for="registerPassword">Password:</label>
+                <input type="password" id="registerPassword" required>
+            </div>
+            <div class="form-group">
+                <label for="registerClinicId">Clinic:</label>
+                <select id="registerClinicId" required>
+                    <option value="">Select a clinic</option>
+                </select>
+            </div>
+            <button type="submit">Register</button>
+        </form>
+    </div>
+
+    <script async type="module">
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('errorMessage');
+
+            try {
+                const response = await fetch('http://localhost:3002/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    alert('✅ Login exitoso! Token guardado.');
+                    console.log('Usuario:', data.user);
+                    console.log('Token:', data.token);
+                } else {
+                    errorDiv.textContent = data.error;
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Error de conexión con el servidor';
+                errorDiv.style.display = 'block';
+            }
+        });
+    </script>
+
+    <script async>
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const name = document.getElementById('registerName').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            const clinicId = document.getElementById('registerClinicId').value;
+            const errorDiv = document.getElementById('errorMessage');
+
+            try {
+                const response = await fetch('http://localhost:3002/api/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ nombre: name, email, password, clinica_id: parseInt(clinicId) })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('✅ Registration successful!');
+                } else {
+                    errorDiv.textContent = data.error;
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Error de conexión con el servidor';
+                errorDiv.style.display = 'block';
+            }
+        });
+
+        async function populateClinics() {
+            console.log('populateClinics called');
+            const clinicSelect = document.getElementById('registerClinicId');
+
+            try {
+                const response = await fetch('http://localhost:3002/api/clinics');
+                console.log('Response:', response);
+                const clinics = await response.json();
+                console.log('Clinics:', clinics);
+
+                clinics.forEach(clinic => {
+                    const option = document.createElement('option');
+                    option.value = clinic.id;
+                    option.textContent = clinic.nombre;
+                    clinicSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error fetching clinics:', error);
+            } finally {
+            }
+
+        console.log('Calling populateClinics');
+        }
+
+populateClinics();
+</script>
+<script>
+   document.getElementById('showRegister').addEventListener('click', function(e) {
+       e.preventDefault();
+       document.getElementById('registerContainer').style.display = 'block';
+   });
+</script>
+<a href="medical_panel.html">Medical Panel</a>
+</body>
+</html>

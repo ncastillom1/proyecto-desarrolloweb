@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pantalla de Información</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: white;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: black;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 1.8rem;
+        }
+
+        .llamado {
+            font-size: 2em;
+            color: green;
+            margin-bottom: 1rem;
+        }
+
+        .proximo {
+            font-size: 1.5em;
+            color: blue;
+        }
+
+        .queue-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            color: black;
+        }
+
+        h2 {
+            color: #333;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 0.5rem;
+        }
+
+        .queue-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .queue-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .turno-number {
+            background: #667eea;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+
+        .patient-info {
+            flex-grow: 1;
+            margin-left: 1rem;
+            text-align: left;
+        }
+
+        .clinica-badge {
+            background: #28a745;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>Pacientes Llamados</h1>
+    <div id="pacienteLlamado" class="llamado">
+        <p>Número Actual: <span id="numeroActual"></span></p>
+        <p>Nombre: <span id="nombrePaciente"></span></p>
+    </div>
+    <h2>Próximos Pacientes</h2>
+    <div id="proximosPacientes" class="proximo">
+        <ul>
+            <li><span class="numero"></span> - <span class="nombre"></span></li>
+        </ul>
+    </div>
+
+    <script>
+        const ws = new WebSocket('ws://localhost:8080');
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+
+            if (data.type === 'queue_update') {
+                displayQueue(data.queue);
+            }
+        };
+
+        function displayQueue(queue) {
+            const queueDiv = document.getElementById('queue');
+            queueDiv.innerHTML = '';
+
+            if (queue.length === 0) {
+                queueDiv.innerHTML = '<p>No patients in the queue.</p>';
+                return;
+            }
+
+            const queueList = document.createElement('ul');
+            queue.forEach(patient => {
+                const listItem = document.createElement('li');
+                listItem.textContent = `${patient.numero_turno} - ${patient.paciente_nombre} (${patient.nombre_clinica})`;
+                queueList.appendChild(listItem);
+            });
+
+            queueDiv.appendChild(queueList);
+        }
+    </script>
+    <script>
+        async function obtenerDatos() {
+            try {
+                const response = await fetch('http://localhost:3002/api/pacientes');
+                const data = await response.json();
+
+                document.getElementById('numeroActual').textContent = data.actual.numero;
+                document.getElementById('nombrePaciente').textContent = data.actual.nombre;
+
+                const proximosPacientesDiv = document.getElementById('proximosPacientes');
+                proximosPacientesDiv.innerHTML = '<ul>' + data.proximos.map(paciente => `<li><span class="numero">${paciente.numero}</span> - <span class="nombre">${paciente.nombre}</span></li>`).join('') + '</ul>';
+            } catch (error) {
+                console.error('Error al obtener los datos:', error);
+                document.getElementById('pacienteLlamado').innerHTML = '<p>Error al obtener los datos.</p>';
+                document.getElementById('proximosPacientes').innerHTML = '';
+            }
+        }
+
+        obtenerDatos();
+        setInterval(obtenerDatos, 5000); // Actualizar cada 5 segundos
+    </script>
+</body>
+</html>

@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preclasificación - Sistema de Colas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 1.8rem;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: #667eea;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .logout-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .form-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .queue-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            color: #333;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 0.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.3s;
+        }
+
+        .btn-primary:hover {
+            background: #764ba2;
+        }
+
+        .queue-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .queue-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .turno-number {
+            background: #667eea;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+
+        .patient-info {
+            flex-grow: 1;
+            margin-left: 1rem;
+        }
+
+        .clinica-badge {
+            background: #28a745;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🏥 Módulo de Preclasificación</h1>
+            <div class="user-info">
+                <div class="user-avatar">AL</div>
+                <span>Ana López (Enfermero)</span>
+                <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
+            </div>
+        </div>
+
+        <!-- Contenido Principal -->
+        <div class="main-content">
+            <!-- Formulario de Registro -->
+            <div class="form-section">
+                <h2>📝 Registrar Nuevo Paciente</h2>
+                <div id="successMessage" class="success-message">
+                    ✅ Paciente registrado exitosamente!
+                </div>
+                <form id="patientForm">
+                    <div class="form-group">
+                        <label for="nombre">Nombre Completo:</label>
+                        <input type="text" id="nombre" required placeholder="Ingrese el nombre del paciente">
+                    </div>
+                    <div class="form-group">
+                        <label for="identificacion">Número de Identificación:</label>
+                        <input type="text" id="identificacion" required placeholder="DPI, Pasaporte, etc.">
+                    </div>
+                    <div class="form-group">
+                        <label for="telefono">Teléfono:</label>
+                        <input type="tel" id="telefono" placeholder="Número de contacto">
+                    </div>
+                    <div class="form-group">
+                        <label for="clinica">Clínica/Especialidad:</label>
+                        <select id="clinica" required>
+                            <option value="">Seleccione una clínica</option>
+                            <option value="1">Medicina General</option>
+                            <option value="2">Pediatría</option>
+                            <option value="3">Ginecología</option>
+                            <option value="4">Traumatología</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="prioridad">Prioridad:</label>
+                        <select id="prioridad">
+                            <option value="1">Normal</option>
+                            <option value="2">Urgencia</option>
+                            <option value="3">Emergencia</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-primary">🎫 Generar Turno</button>
+                </form>
+            </div>
+
+            <!-- Cola de Turnos -->
+            <div class="queue-section">
+                <h2>📊 Turnos en Espera</h2>
+                <div class="queue-list" id="queueList">
+                    <!-- Los turnos se cargarán aquí dinámicamente -->
+                    <div class="queue-item">
+                        <div class="turno-number">T-001</div>
+                        <div class="patient-info">
+                            <strong>Juan Pérez</strong>
+                            <div>Identificación: 123456789</div>
+                        </div>
+                        <span class="clinica-badge">Medicina General</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Verificar autenticación
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user || user.rol !== 'enfermero') {
+            alert('Acceso denegado. Debe ser enfermero para acceder a este módulo.');
+            window.location.href = 'index.html';
+        }
+
+        // Actualizar información del usuario en el header
+        document.querySelector('.user-avatar').textContent = user.nombre.split(' ').map(n => n[0]).join('');
+        document.querySelector('.user-info span').textContent = `${user.nombre} (${user.rol})`;
+
+        // Manejar envío del formulario
+        document.getElementById('patientForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                nombre: document.getElementById('nombre').value,
+                identificacion: document.getElementById('identificacion').value,
+                telefono: document.getElementById('telefono').value,
+                clinica_id: document.getElementById('clinica').value,
+                prioridad: document.getElementById('prioridad').value
+            };
+
+            try {
+                const response = await fetch('http://localhost:3002/api/turnos', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                if (response.ok) {
+                    // Mostrar mensaje de éxito
+                    document.getElementById('successMessage').style.display = 'block';
+                    document.getElementById('patientForm').reset();
+                    
+                    // Ocultar mensaje después de 3 segundos
+                    setTimeout(() => {
+                        document.getElementById('successMessage').style.display = 'none';
+                    }, 3002);
+
+                    // Recargar la lista de turnos
+                    cargarTurnos();
+                } else {
+                    console.log("Error response:", response); // Added log
+                    alert('Error al registrar el paciente');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                console.log("Connection error:", error); // Added log
+                alert('Error de conexión');
+            }
+        });
+
+        // Función para cargar turnos
+        async function cargarTurnos() {
+            try {
+                const response = await fetch('http://localhost:3002/api/turnos', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                if (response.ok) {
+                    const turnos = await response.json();
+                    actualizarListaTurnos(turnos);
+                }
+            } catch (error) {
+                console.error('Error cargando turnos:', error);
+            }
+        }
+
+        // Función para actualizar la lista visual de turnos
+        function actualizarListaTurnos(turnos) {
+            const queueList = document.getElementById('queueList');
+            queueList.innerHTML = '';
+
+            turnos.forEach(turno => {
+                const turnoElement = document.createElement('div');
+                turnoElement.className = 'queue-item';
+                turnoElement.innerHTML = `
+                    <div class="turno-number">${turno.numero_turno}</div>
+                    <div class="patient-info">
+                        <strong>${turno.paciente_nombre}</strong>
+                        <div>Identificación: ${turno.paciente_identificacion}</div>
+                    </div>
+                    <span class="clinica-badge">${turno.nombre_clinica}</span>
+                `;
+                queueList.appendChild(turnoElement);
+            });
+        }
+
+        // Función de logout
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'index.html';
+        }
+
+        // Cargar turnos al iniciar la página
+        cargarTurnos();
+    </script>
+</body>
+</html>
