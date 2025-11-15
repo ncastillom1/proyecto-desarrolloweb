@@ -65,5 +65,7 @@ CREATE TABLE Appointments (
     clinica_id INT NOT NULL FOREIGN KEY REFERENCES Clinicas(id),
     fecha DATETIME NOT NULL,
     hora TIME NOT NULL,
-    estado NVARCHAR(20) DEFAULT 'scheduled'
+    estado NVARCHAR(20) DEFAULT 'scheduled',
+    reassignment_reason NVARCHAR(255) NULL,
+    fecha_modificacion DATETIME NULL
 );

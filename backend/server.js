@@ -50,6 +50,16 @@ db.serialize(() => {
     estado TEXT DEFAULT 'espera',
     fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
+  // Tabla de Appointments
+  db.run(`CREATE TABLE IF NOT EXISTS Appointments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id INTEGER NOT NULL,
+    clinica_id INTEGER NOT NULL,
+    fecha TEXT NOT NULL,
+    hora TEXT NOT NULL,
+    reassignment_reason TEXT,
+    fecha_modificacion DATETIME
+  )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS MedicalData (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -84,6 +94,12 @@ db.serialize(() => {
   });
 
   console.log('✅ Base de datos SQLite configurada correctamente');
+
+  // Iniciar el servidor Express
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`Servidor Express escuchando en el puerto ${PORT}`);
+  });
 });
 
 // Middleware de autenticación
@@ -286,6 +302,74 @@ app.route('/api/appointments/:id')
                 message: 'Appointment deleted successfully'
             });
         });
+    
+    // Ruta para reasignar una cita existente
+    app.put('/api/appointments/:id/reassign', authenticateToken, (req, res) => {
+        const appointmentId = req.params.id;
+        const { clinica_id, reassignmentReason } = req.body;
+    
+        // Validar datos requeridos
+        if (!clinica_id || !reassignmentReason) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+    
+        // Actualizar la cita en la base de datos
+        db.run(
+            `UPDATE Appointments SET clinica_id = ?, reassignment_reason = ?, fecha_modificacion = DATETIME('now') WHERE id = ?`,
+            [clinica_id, reassignmentReason, appointmentId],
+            function (err) {
+                if (err) {
+                    console.error('Error updating appointment:', err);
+                    return res.status(500).json({ error: 'Server error: ' + err.message });
+                }
+    
+                // Devolver mensaje de éxito
+                res.json({
+                    success: true,
+                    message: 'Appointment updated successfully',
+                    appointment: {
+                        id: appointmentId,
+                        clinica_id: clinica_id,
+                        reassignmentReason: reassignmentReason
+                    }
+                });
+            }
+        );
+    });
+    
+    // Ruta para reasignar una cita existente
+    app.put('/api/appointments/:id/reassign', authenticateToken, (req, res) => {
+        const appointmentId = req.params.id;
+        const { clinica_id, reassignmentReason } = req.body;
+    
+        // Validar datos requeridos
+        if (!clinica_id || !reassignmentReason) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+    
+        // Actualizar la cita en la base de datos
+        db.run(
+            `UPDATE Appointments SET clinica_id = ?, reassignment_reason = ?, fecha_modificacion = DATETIME('now') WHERE id = ?`,
+            [clinica_id, reassignmentReason, appointmentId],
+            function (err) {
+                if (err) {
+                    console.error('Error updating appointment:', err);
+                    return res.status(500).json({ error: 'Server error: ' + err.message });
+                }
+    
+                // Devolver mensaje de éxito
+                res.json({
+                    success: true,
+                    message: 'Appointment updated successfully',
+                    appointment: {
+                        id: appointmentId,
+                        clinica_id: clinica_id,
+                        reassignmentReason: reassignmentReason
+                    }
+                });
+            }
+        );
+    });
     });
 
 // Ruta para crear nuevo turno - CON DEBUG
@@ -503,26 +587,38 @@ app.post('/api/turnos/llamar', authenticateToken, (req, res) => {
   db.get("SELECT id, paciente_nombre, clinica_id, numero_turno FROM Turnos WHERE estado = 'espera' ORDER BY fecha_creacion ASC LIMIT 1", (err, turno) => {
     if (err) {
       console.error('Error al buscar el siguiente turno:', err);
-      return res.status(500).json({ error: 'Error al buscar el siguiente turno' });
+      return res.status(500).json({ error: 'Error al buscar el siguiente turno: ' + err.message });
     }
 
     if (!turno) {
-      return res.status(404).json({ message: 'No hay turnos en espera' });
-    }
-
-    // Actualizar el estado del turno a 'atendiendo'
-    db.run("UPDATE Turnos SET estado = 'atendiendo' WHERE id = ?", [turno.id], function(err) {
-      if (err) {
-        console.error('Error al actualizar el estado del turno:', err);
-        return res.status(500).json({ error: 'Error al actualizar el estado del turno' });
-      }
-
-      res.json({
-        success: true,
-        message: 'Llamando al siguiente paciente',
-        turno: turno
+      db.get("SELECT COUNT(*) AS count FROM Turnos WHERE estado = 'espera'", (err, count) => {
+        if (err) {
+          console.error('Error getting count of turnos:', err);
+          return res.status(500).json({ error: 'Error getting count of turnos: ' + err.message });
+        } else {
+          console.log('Number of turnos in espera:', count.count);
+          if (count.count === 0) {
+            console.log('No turnos in espera: 0');
+          }
+        }
+        return res.status(404).json({ message: 'No hay turnos en espera' });
       });
-    });
+    } else {
+      console.log('Turno encontrado:', turno);
+      // Actualizar el estado del turno a 'atendiendo'
+      db.run("UPDATE Turnos SET estado = 'atendiendo' WHERE id = ?", [turno.id], function(err) {
+        if (err) {
+          console.error('Error al actualizar el estado del turno:', err);
+          return res.status(500).json({ error: 'Error al actualizar el estado del turno: ' + err.message });
+        }
+
+        res.json({
+          success: true,
+          message: 'Llamando al siguiente paciente',
+          turno: turno
+        });
+      });
+    }
   });
 });
 
@@ -610,4 +706,12 @@ app.get('/api/pacientes', (req, res) => {
       res.json(data);
     });
   });
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Unhandled Exception:', err);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err);
 });

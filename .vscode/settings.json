@@ -1,0 +1,4 @@
+{
+    "git.ignoreSubmodules": true,
+    "git.autoRepositoryDetection": false
+}
